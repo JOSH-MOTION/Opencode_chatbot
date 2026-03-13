@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Web Explorer - Intelligent Website Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+        
+        .chat-messages {
+            height: calc(100vh - 280px);
+            min-height: 500px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+        }
+        
+        .message-bubble {
+            animation: slideInUp 0.3s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background: #fff;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 3px;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-8px);
+            }
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .input-glow:focus {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 0 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+        
+        .status-dot {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+            }
+        }
+        
+        .feature-card {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .loading-dots span {
+            animation: loading 1.4s infinite;
+        }
+        
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes loading {
+            0%, 60%, 100% {
+                opacity: 0.3;
+            }
+            30% {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Header -->
+    <header class="glass-morphism border-b border-white/10">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-robot text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">AI Web Explorer</h1>
+                        <p class="text-white/70 text-sm">Intelligent Website Analysis</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <div id="status-indicator" class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-400 rounded-full status-dot"></div>
+                        <span class="text-white/80 text-sm font-medium">Ready</span>
+                    </div>
+                    <button class="text-white/70 hover:text-white transition-colors">
+                        <i class="fas fa-cog text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        <!-- URL Input Section -->
+        <section id="url-section" class="mb-8">
+            <div class="glass-morphism rounded-2xl p-8">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-white mb-3">Analyze Any Website</h2>
+                    <p class="text-white/70 text-lg">Enter website URLs to get AI-powered insights and answers</p>
+                </div>
+                
+                <div class="max-w-3xl mx-auto">
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="url-input" 
+                            placeholder="https://example.com, https://another-site.com"
+                            class="w-full px-6 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:border-white/40 input-glow text-lg"
+                        >
+                        <button 
+                            id="index-btn" 
+                            onclick="indexUrls()"
+                            class="absolute right-2 top-2 px-8 py-3 btn-primary text-white rounded-xl font-semibold flex items-center space-x-2"
+                        >
+                            <i class="fas fa-search"></i>
+                            <span>Analyze</span>
+                        </button>
+                    </div>
+                    <div id="index-status" class="mt-4 hidden"></div>
+                </div>
+                
+                <!-- Features -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                    <div class="feature-card glass-morphism rounded-xl p-6 text-center">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-bolt text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-white font-semibold mb-2">Lightning Fast</h3>
+                        <p class="text-white/60 text-sm">Get instant insights from any website</p>
+                    </div>
+                    <div class="feature-card glass-morphism rounded-xl p-6 text-center">
+                        <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-brain text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-white font-semibold mb-2">AI Powered</h3>
+                        <p class="text-white/60 text-sm">Advanced AI understands web content</p>
+                    </div>
+                    <div class="feature-card glass-morphism rounded-xl p-6 text-center">
+                        <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-400 rounded-xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-comments text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-white font-semibold mb-2">Natural Chat</h3>
+                        <p class="text-white/60 text-sm">Ask questions in natural language</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chat Section -->
+        <section id="chat-section" class="hidden">
+            <div class="glass-morphism rounded-2xl overflow-hidden">
+                <!-- Chat Header -->
+                <div class="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-b border-white/10 px-8 py-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-comments text-white text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-2xl font-bold text-white">Chat with AI</h2>
+                                <p class="text-white/70 text-sm">Ask anything about the analyzed content</p>
+                            </div>
+                        </div>
+                        <button 
+                            onclick="resetChat()"
+                            class="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white font-medium transition-all duration-200"
+                        >
+                            <i class="fas fa-redo mr-2"></i>
+                            New Analysis
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="chat-messages overflow-y-auto p-8 space-y-6">
+                    <div class="text-center py-12">
+                        <div class="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-comments text-white text-3xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">Ready to Chat</h3>
+                        <p class="text-white/70">Ask me anything about the websites we've analyzed</p>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="border-t border-white/10 p-6">
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="chat-input" 
+                            placeholder="Ask me anything about the analyzed content..."
+                            class="w-full px-6 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:border-white/40 input-glow text-lg pr-20"
+                            onkeypress="if(event.key === 'Enter') sendMessage()"
+                        >
+                        <button 
+                            id="send-btn"
+                            onclick="sendMessage()"
+                            class="absolute right-2 top-2 px-6 py-3 btn-primary text-white rounded-xl font-medium flex items-center space-x-2"
+                        >
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Send</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="glass-morphism rounded-2xl p-8 flex flex-col items-center space-y-6">
+            <div class="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+            <div class="text-center">
+                <p id="loading-text" class="text-white text-lg font-medium">Processing...</p>
+                <div class="loading-dots flex space-x-1 justify-center mt-2">
+                    <span class="w-2 h-2 bg-white/60 rounded-full"></span>
+                    <span class="w-2 h-2 bg-white/60 rounded-full"></span>
+                    <span class="w-2 h-2 bg-white/60 rounded-full"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

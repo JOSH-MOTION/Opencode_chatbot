@@ -1,0 +1,17 @@
+{
+  "name": "chatbot-fullstack",
+  "version": "1.0.0",
+  "description": "Full-stack URL-based chatbot with Vercel deployment",
+  "main": "frontend/index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed - static files + serverless functions'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": ["chatbot", "vercel", "serverless", "fullstack"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}

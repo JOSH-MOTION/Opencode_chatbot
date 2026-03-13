@@ -1,0 +1,17 @@
+{
+  "name": "chatbot-frontend",
+  "version": "1.0.0",
+  "description": "Professional web UI for URL-based chatbot",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed - static files'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": ["chatbot", "web-ui", "vercel"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
