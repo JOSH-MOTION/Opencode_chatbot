@@ -3,409 +3,1142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Website Q&A Chatbot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Nexus — Intelligent Web Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        .chat-messages {
-            height: calc(100vh - 320px);
-            min-height: 400px;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #080b0f;
+            --surface: #0e1318;
+            --surface2: #141b22;
+            --border: rgba(255,255,255,0.07);
+            --border-bright: rgba(255,255,255,0.14);
+            --accent: #00e5a0;
+            --accent2: #0066ff;
+            --accent-dim: rgba(0,229,160,0.12);
+            --text: #e8edf2;
+            --text-muted: #5a6a78;
+            --text-mid: #8a9baa;
+            --user-bubble: #0055d4;
+            --error: #ff4757;
+            --warn: #ffa502;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --font-display: 'Syne', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+            --font-mono: 'DM Mono', monospace;
         }
-        .typing-indicator {
+
+        html { height: 100%; scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            height: 100%;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ─── NOISE OVERLAY ─────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.6;
+        }
+
+        /* ─── AMBIENT GLOW ──────────────────────── */
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(120px);
+            opacity: 0.18;
+        }
+        .glow-orb-1 {
+            width: 600px; height: 600px;
+            background: var(--accent);
+            top: -200px; right: -100px;
+            animation: drift1 18s ease-in-out infinite;
+        }
+        .glow-orb-2 {
+            width: 500px; height: 500px;
+            background: var(--accent2);
+            bottom: -150px; left: -100px;
+            animation: drift2 22s ease-in-out infinite;
+        }
+        @keyframes drift1 {
+            0%,100% { transform: translate(0,0) scale(1); }
+            50% { transform: translate(-80px, 60px) scale(1.15); }
+        }
+        @keyframes drift2 {
+            0%,100% { transform: translate(0,0) scale(1); }
+            50% { transform: translate(60px, -80px) scale(0.9); }
+        }
+
+        /* ─── LAYOUT ─────────────────────────────── */
+        .app {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+        }
+
+        /* ─── HEADER ─────────────────────────────── */
+        header {
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(24px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(8,11,15,0.8);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-mark {
+            width: 38px; height: 38px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .logo-mark::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 60%);
+        }
+        .logo-mark svg { color: #080b0f; }
+
+        .logo-text {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--text);
+        }
+        .logo-text span {
+            color: var(--accent);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-mid);
+            transition: all 0.3s;
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            transition: all 0.3s;
+        }
+        .status-pill.processing .status-dot {
+            background: var(--warn);
+            box-shadow: 0 0 8px var(--warn);
+            animation: pulse-dot 1s ease-in-out infinite;
+        }
+        .status-pill.error .status-dot {
+            background: var(--error);
+            box-shadow: 0 0 8px var(--error);
+        }
+        @keyframes pulse-dot {
+            0%,100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        /* ─── MAIN ───────────────────────────────── */
+        main {
+            padding: 48px 40px;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* ─── HERO ───────────────────────────────── */
+        #hero {
+            text-align: center;
+            margin-bottom: 52px;
+            animation: fade-up 0.6s ease both;
+        }
+
+        .eyebrow {
             display: inline-flex;
             align-items: center;
-            padding: 8px 12px;
-            background: #e5e7eb;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(0,229,160,0.2);
+            border-radius: 100px;
+            padding: 5px 14px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: clamp(36px, 5vw, 58px);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.08;
+            margin-bottom: 18px;
+            color: var(--text);
+        }
+        h1 .line2 {
+            display: block;
+            background: linear-gradient(135deg, var(--accent) 0%, #00b3ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-sub {
+            font-size: 17px;
+            color: var(--text-muted);
+            font-weight: 300;
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ─── PANELS ─────────────────────────────── */
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .panel:focus-within {
+            border-color: var(--border-bright);
+        }
+
+        /* ─── URL SECTION ────────────────────────── */
+        #url-section {
+            animation: fade-up 0.6s 0.1s ease both;
+        }
+
+        .panel-header {
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-mid);
+        }
+
+        .panel-body { padding: 28px; }
+
+        .url-input-wrap {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .url-input {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+            caret-color: var(--accent);
+        }
+        .url-input::placeholder { color: var(--text-muted); }
+        .url-input:focus {
+            border-color: rgba(0,229,160,0.35);
+            box-shadow: 0 0 0 3px rgba(0,229,160,0.06);
+            background: rgba(20,27,34,0.9);
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 14px 24px;
+            background: var(--accent);
+            color: #080b0f;
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 60%);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,229,160,0.3); }
+        .btn-primary:hover::after { opacity: 1; }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-ghost {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: transparent;
+            color: var(--text-mid);
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--border-bright); background: var(--surface2); }
+        .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ─── INDEX STATUS ───────────────────────── */
+        #index-status {
+            margin-top: 16px;
+            display: none;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid;
+            animation: fade-up 0.3s ease both;
+        }
+        #index-status.success {
+            background: rgba(0,229,160,0.06);
+            border-color: rgba(0,229,160,0.2);
+            color: var(--accent);
+        }
+        #index-status.error {
+            background: rgba(255,71,87,0.06);
+            border-color: rgba(255,71,87,0.2);
+            color: var(--error);
+        }
+
+        /* ─── FEATURES ───────────────────────────── */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .feature {
+            padding: 16px 20px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: fade-up 0.5s ease both;
+        }
+        .feature:nth-child(1) { animation-delay: 0.2s; }
+        .feature:nth-child(2) { animation-delay: 0.3s; }
+        .feature:nth-child(3) { animation-delay: 0.4s; }
+
+        .feature-icon {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+        .feature-icon.green { background: rgba(0,229,160,0.12); }
+        .feature-icon.blue { background: rgba(0,102,255,0.12); }
+        .feature-icon.purple { background: rgba(138,99,255,0.12); }
+
+        .feature-label {
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 3px;
+        }
+        .feature-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* ─── CHAT SECTION ───────────────────────── */
+        #chat-section {
+            display: none;
+            margin-top: 28px;
+            animation: fade-up 0.45s ease both;
+        }
+        #chat-section.visible { display: block; }
+
+        .chat-topbar {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-avatar {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent) 0%, #00b3ff 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
+        }
+
+        .chat-title {
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .chat-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* ─── MESSAGES ───────────────────────────── */
+        #chat-messages {
+            height: 480px;
+            overflow-y: auto;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        #chat-messages::-webkit-scrollbar { width: 4px; }
+        #chat-messages::-webkit-scrollbar-track { background: transparent; }
+        #chat-messages::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 16px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        .empty-icon {
+            width: 60px; height: 60px;
             border-radius: 18px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
-        .typing-indicator span {
-            height: 8px;
-            width: 8px;
-            background: #6b7280;
+        .empty-title {
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-mid);
+        }
+        .empty-sub {
+            font-size: 13px;
+            max-width: 260px;
+            line-height: 1.6;
+        }
+
+        /* suggested questions */
+        .suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .suggestion-chip {
+            padding: 7px 14px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 12px;
+            color: var(--text-mid);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .suggestion-chip:hover {
+            border-color: rgba(0,229,160,0.3);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* ─── MESSAGE BUBBLES ───────────────────── */
+        .msg-row {
+            display: flex;
+            gap: 12px;
+            animation: fade-up 0.3s ease both;
+        }
+        .msg-row.user { flex-direction: row-reverse; }
+
+        .msg-avatar {
+            width: 30px; height: 30px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            margin-top: 2px;
+        }
+        .msg-row.assistant .msg-avatar {
+            background: linear-gradient(135deg, var(--accent), #00b3ff);
+        }
+        .msg-row.user .msg-avatar {
+            background: var(--user-bubble);
+        }
+
+        .msg-content { max-width: 72%; }
+
+        .msg-bubble {
+            padding: 14px 18px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.65;
+            position: relative;
+        }
+        .msg-row.assistant .msg-bubble {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-top-left-radius: 4px;
+            color: var(--text);
+        }
+        .msg-row.user .msg-bubble {
+            background: var(--user-bubble);
+            border-top-right-radius: 4px;
+            color: #fff;
+        }
+
+        .msg-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 5px;
+            font-family: var(--font-mono);
+        }
+        .msg-row.user .msg-time { text-align: right; }
+
+        /* ─── TYPING ─────────────────────────────── */
+        .typing-bubble {
+            padding: 16px 20px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            border-top-left-radius: 4px;
+            display: inline-flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .typing-dot {
+            width: 7px; height: 7px;
             border-radius: 50%;
-            display: inline-block;
-            margin: 0 2px;
-            animation: typing 1.4s infinite;
+            background: var(--text-muted);
+            animation: bounce 1.3s ease-in-out infinite;
         }
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
+        .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce {
+            0%,60%,100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); background: var(--accent); }
         }
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
+
+        /* ─── CHAT INPUT ─────────────────────────── */
+        .chat-input-area {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+            background: rgba(8,11,15,0.5);
         }
-        @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
-            }
-            30% {
-                transform: translateY(-10px);
-            }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
         }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in;
+
+        .chat-textarea {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 13px 18px;
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            min-height: 46px;
+            max-height: 140px;
+            line-height: 1.5;
+            transition: all 0.2s;
+            caret-color: var(--accent);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        .chat-textarea::placeholder { color: var(--text-muted); }
+        .chat-textarea:focus {
+            border-color: rgba(0,229,160,0.35);
+            box-shadow: 0 0 0 3px rgba(0,229,160,0.06);
+        }
+
+        .send-btn {
+            width: 46px; height: 46px;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: #080b0f;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .send-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,160,0.3); }
+        .send-btn:active { transform: translateY(0); }
+        .send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ─── LOADING OVERLAY ───────────────────── */
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(8,11,15,0.88);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 24px;
+        }
+        #loading-overlay.visible { display: flex; }
+
+        .spinner-ring {
+            width: 52px; height: 52px;
+            border: 2px solid var(--border-bright);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-label {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-mid);
+            letter-spacing: 0.06em;
+        }
+
+        .loading-progress {
+            display: flex;
+            gap: 6px;
+        }
+        .loading-step {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--border-bright);
+            animation: step-fade 1.8s ease-in-out infinite;
+        }
+        .loading-step:nth-child(2) { animation-delay: 0.3s; }
+        .loading-step:nth-child(3) { animation-delay: 0.6s; }
+        @keyframes step-fade {
+            0%,100% { background: var(--border-bright); }
+            50% { background: var(--accent); }
+        }
+
+        /* ─── SESSION ENDED BANNER ───────────────── */
+        .session-ended {
+            margin: 0 24px 16px;
+            padding: 12px 16px;
+            background: rgba(255,71,87,0.06);
+            border: 1px solid rgba(255,71,87,0.2);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--error);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ─── ANIMATIONS ─────────────────────────── */
+        @keyframes fade-up {
+            from { opacity: 0; transform: translateY(16px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── RESPONSIVE ─────────────────────────── */
+        @media (max-width: 640px) {
+            header { padding: 16px 20px; }
+            main { padding: 28px 20px; }
+            .features { grid-template-columns: 1fr; }
+            .url-input-wrap { flex-direction: column; }
+            h1 { font-size: 32px; }
+            .panel-body { padding: 20px; }
+            .chat-topbar { padding: 14px 18px; }
+            #chat-messages { padding: 18px; height: 400px; }
+            .chat-input-area { padding: 14px 18px; }
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-robot text-2xl"></i>
-                    <h1 class="text-2xl font-bold">Website Q&A Chatbot</h1>
+<body>
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+
+    <div class="app">
+        <!-- ─── HEADER ─── -->
+        <header>
+            <div class="logo">
+                <div class="logo-mark">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <span id="status-indicator" class="flex items-center space-x-2">
-                        <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-                        <span class="text-sm">Ready</span>
-                    </span>
+                <span class="logo-text">Nex<span>us</span></span>
+            </div>
+            <div class="header-right">
+                <div class="status-pill" id="status-pill">
+                    <div class="status-dot"></div>
+                    <span id="status-text">Ready</span>
                 </div>
             </div>
+        </header>
+
+        <!-- ─── MAIN ─── -->
+        <main>
+            <!-- Hero -->
+            <div id="hero">
+                <div class="eyebrow">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+                    Powered by AI
+                </div>
+                <h1>
+                    Ask anything<br>
+                    <span class="line2">about any website</span>
+                </h1>
+                <p class="hero-sub">Enter a URL, and have a conversation with its content. No fluff — just precise answers from what's there.</p>
+            </div>
+
+            <!-- URL Panel -->
+            <section id="url-section" class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Source</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.4"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </div>
+                <div class="panel-body">
+                    <div class="url-input-wrap">
+                        <input
+                            type="url"
+                            id="url-input"
+                            class="url-input"
+                            placeholder="https://example.com, https://docs.example.com"
+                            onkeypress="if(event.key==='Enter') indexUrls()"
+                        >
+                        <button id="index-btn" class="btn-primary" onclick="indexUrls()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            Analyze
+                        </button>
+                    </div>
+                    <div id="index-status"></div>
+
+                    <div class="features">
+                        <div class="feature">
+                            <div class="feature-icon green">⚡</div>
+                            <div>
+                                <div class="feature-label">Instant indexing</div>
+                                <div class="feature-desc">Pages analyzed in seconds</div>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon blue">🎯</div>
+                            <div>
+                                <div class="feature-label">Precise recall</div>
+                                <div class="feature-desc">TF-IDF ranked retrieval</div>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="feature-icon purple">🔒</div>
+                            <div>
+                                <div class="feature-label">In-context only</div>
+                                <div class="feature-desc">No hallucinated answers</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chat Panel -->
+            <section id="chat-section" class="panel">
+                <div class="chat-topbar">
+                    <div class="chat-info">
+                        <div class="chat-avatar">🤖</div>
+                        <div>
+                            <div class="chat-title">Nexus Assistant</div>
+                            <div class="chat-subtitle" id="chat-subtitle">Ready to answer</div>
+                        </div>
+                    </div>
+                    <button class="btn-ghost" onclick="resetChat()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+                        New session
+                    </button>
+                </div>
+
+                <div id="chat-messages">
+                    <div class="empty-state" id="empty-state">
+                        <div class="empty-icon">💬</div>
+                        <div class="empty-title">Start the conversation</div>
+                        <p class="empty-sub">Ask anything about the indexed website content below</p>
+                        <div class="suggestions">
+                            <div class="suggestion-chip" onclick="sendSuggestion('What is this website about?')">What is this about?</div>
+                            <div class="suggestion-chip" onclick="sendSuggestion('Summarize the main topics')">Summarize topics</div>
+                            <div class="suggestion-chip" onclick="sendSuggestion('What are the key features?')">Key features</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="session-ended-banner" style="display:none;">
+                    <div class="session-ended">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        Session closed — question was outside indexed content. Start a new session to continue.
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="input-row">
+                        <textarea
+                            id="chat-input"
+                            class="chat-textarea"
+                            placeholder="Ask a question about the website content…"
+                            rows="1"
+                            onkeydown="handleChatKey(event)"
+                            oninput="autoResize(this)"
+                        ></textarea>
+                        <button id="send-btn" class="send-btn" onclick="sendMessage()">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </div>
+                    <p style="margin-top:10px; font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">Enter to send · Shift+Enter for new line</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner-ring"></div>
+        <div class="loading-label" id="loading-text">Analyzing pages…</div>
+        <div class="loading-progress">
+            <div class="loading-step"></div>
+            <div class="loading-step"></div>
+            <div class="loading-step"></div>
         </div>
-    </header>
-
-    <main class="container mx-auto px-4 py-6">
-        <!-- URL Input Section -->
-        <section id="url-section" class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 class="text-xl font-semibold mb-4 flex items-center">
-                <i class="fas fa-link mr-2 text-blue-600"></i>
-                Enter Website URL(s)
-            </h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="url-input" class="block text-sm font-medium text-gray-700 mb-2">
-                        Website URLs (comma-separated)
-                    </label>
-                    <div class="flex space-x-2">
-                        <input 
-                            type="text" 
-                            id="url-input" 
-                            placeholder="https://example.com, https://another-site.com"
-                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                        <button 
-                            id="index-btn" 
-                            onclick="indexUrls()"
-                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center space-x-2"
-                        >
-                            <i class="fas fa-search"></i>
-                            <span>Index</span>
-                        </button>
-                    </div>
-                </div>
-                <div id="index-status" class="hidden text-sm"></div>
-            </div>
-        </section>
-
-        <!-- Chat Section -->
-        <section id="chat-section" class="hidden">
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                <!-- Chat Header -->
-                <div class="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-xl font-semibold flex items-center">
-                            <i class="fas fa-comments mr-2"></i>
-                            Chat with Website Content
-                        </h2>
-                        <button 
-                            onclick="resetChat()"
-                            class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition duration-200"
-                        >
-                            <i class="fas fa-redo mr-2"></i>
-                            New Session
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Chat Messages -->
-                <div id="chat-messages" class="chat-messages overflow-y-auto p-6 space-y-4">
-                    <div class="text-center text-gray-500 py-8">
-                        <i class="fas fa-comments text-4xl mb-4 text-gray-300"></i>
-                        <p>Ask questions about the indexed website content</p>
-                    </div>
-                </div>
-
-                <!-- Chat Input -->
-                <div class="border-t border-gray-200 px-6 py-4">
-                    <div class="flex space-x-2">
-                        <input 
-                            type="text" 
-                            id="chat-input" 
-                            placeholder="Ask a question about the website content..."
-                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            onkeypress="if(event.key === 'Enter') sendMessage()"
-                        >
-                        <button 
-                            id="send-btn"
-                            onclick="sendMessage()"
-                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center space-x-2"
-                        >
-                            <i class="fas fa-paper-plane"></i>
-                            <span>Send</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Loading Overlay -->
-        <div id="loading-overlay" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <p id="loading-text" class="text-gray-700">Processing...</p>
-            </div>
-        </div>
-    </main>
+    </div>
 
     <script>
+        // ─── STATE ───────────────────────────────────────────────────
+        let API_BASE = window.location.origin;
         let sessionId = null;
-        let isProcessing = false;
+        let busy = false;
 
-        function showLoading(text = 'Processing...') {
-            document.getElementById('loading-text').textContent = text;
-            document.getElementById('loading-overlay').classList.remove('hidden');
+        // ─── DOM REFS ────────────────────────────────────────────────
+        const statusPill = document.getElementById('status-pill');
+        const statusText = document.getElementById('status-text');
+        const urlInput   = document.getElementById('url-input');
+        const indexBtn   = document.getElementById('index-btn');
+        const indexStatus= document.getElementById('index-status');
+        const chatSection= document.getElementById('chat-section');
+        const chatMessages=document.getElementById('chat-messages');
+        const emptyState = document.getElementById('empty-state');
+        const chatInput  = document.getElementById('chat-input');
+        const sendBtn    = document.getElementById('send-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText= document.getElementById('loading-text');
+        const chatSubtitle= document.getElementById('chat-subtitle');
+        const sessionBanner = document.getElementById('session-ended-banner');
+
+        // ─── STATUS HELPERS ──────────────────────────────────────────
+        function setStatus(text, type='ready') {
+            statusText.textContent = text;
+            statusPill.className = 'status-pill ' + type;
         }
 
-        function hideLoading() {
-            document.getElementById('loading-overlay').classList.add('hidden');
+        function showLoading(text='Analyzing pages…') {
+            loadingText.textContent = text;
+            loadingOverlay.classList.add('visible');
+        }
+        function hideLoading() { loadingOverlay.classList.remove('visible'); }
+
+        function showIndexStatus(msg, type) {
+            indexStatus.textContent = msg;
+            indexStatus.className = type;
+            indexStatus.style.display = 'block';
         }
 
-        function updateStatus(text, type = 'ready') {
-            const indicator = document.getElementById('status-indicator');
-            const colors = {
-                ready: 'bg-yellow-400',
-                success: 'bg-green-400',
-                error: 'bg-red-400',
-                processing: 'bg-blue-400'
-            };
-            
-            indicator.innerHTML = `
-                <span class="w-2 h-2 ${colors[type]} rounded-full animate-pulse"></span>
-                <span class="text-sm">${text}</span>
-            `;
-        }
-
-        function showIndexStatus(message, type = 'info') {
-            const statusDiv = document.getElementById('index-status');
-            const colors = {
-                info: 'text-blue-600',
-                success: 'text-green-600',
-                error: 'text-red-600'
-            };
-            
-            statusDiv.className = `${colors[type]} fade-in`;
-            statusDiv.textContent = message;
-            statusDiv.classList.remove('hidden');
-        }
-
+        // ─── URL INDEXING ────────────────────────────────────────────
         async function indexUrls() {
-            if (isProcessing) return;
-            
-            const urlInput = document.getElementById('url-input');
+            if (busy) return;
             const urls = urlInput.value.trim();
-            
-            if (!urls) {
-                showIndexStatus('Please enter at least one URL', 'error');
-                return;
-            }
+            if (!urls) { showIndexStatus('⚠ Enter at least one URL to continue.', 'error'); return; }
 
-            isProcessing = true;
-            const indexBtn = document.getElementById('index-btn');
+            busy = true;
             indexBtn.disabled = true;
-            indexBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            
-            showLoading('Indexing website content...');
-            updateStatus('Indexing...', 'processing');
-            
+            showLoading('Fetching and indexing pages…');
+            setStatus('Indexing…', 'processing');
+
             try {
-                const response = await fetch('/api/index', {
+                const res = await fetch(`${API_BASE}/api/index`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ urls })
                 });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Indexing failed');
 
-                const data = await response.json();
+                sessionId = data.session_id;
+                showIndexStatus(`✓ ${data.message}`, 'success');
+                setStatus('Active', 'ready');
+                chatSubtitle.textContent = `${data.num_pages} page${data.num_pages !== 1 ? 's' : ''} indexed`;
 
-                if (response.ok) {
-                    sessionId = data.session_id;
-                    showIndexStatus(data.message, 'success');
-                    updateStatus('Ready to chat', 'success');
-                    
-                    // Show chat section
-                    setTimeout(() => {
-                        document.getElementById('chat-section').classList.remove('hidden');
-                        document.getElementById('chat-section').classList.add('fade-in');
-                        document.getElementById('chat-input').focus();
-                    }, 500);
-                } else {
-                    showIndexStatus(data.error || 'Failed to index URLs', 'error');
-                    updateStatus('Error', 'error');
-                }
-            } catch (error) {
-                showIndexStatus('Network error: ' + error.message, 'error');
-                updateStatus('Error', 'error');
+                setTimeout(() => {
+                    chatSection.classList.add('visible');
+                    chatSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    chatInput.focus();
+                }, 400);
+
+            } catch (e) {
+                showIndexStatus(`✕ ${e.message}`, 'error');
+                setStatus('Error', 'error');
             } finally {
                 hideLoading();
-                isProcessing = false;
+                busy = false;
                 indexBtn.disabled = false;
-                indexBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
 
-        function addMessage(content, isUser = false) {
-            const messagesDiv = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'} fade-in`;
-            
-            const bgColor = isUser ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800';
-            const alignment = isUser ? 'items-end' : 'items-start';
-            
-            messageDiv.innerHTML = `
-                <div class="flex ${alignment} space-x-2 max-w-3xl">
-                    ${!isUser ? '<i class="fas fa-robot text-blue-600 mt-2"></i>' : ''}
-                    <div class="${bgColor} rounded-lg px-4 py-2">
-                        <p class="text-sm">${content}</p>
-                    </div>
-                    ${isUser ? '<i class="fas fa-user text-gray-600 mt-2"></i>' : ''}
-                </div>
-            `;
-            
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        // ─── CHAT ────────────────────────────────────────────────────
+        function getTime() {
+            return new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
         }
 
-        function showTypingIndicator() {
-            const messagesDiv = document.getElementById('chat-messages');
-            const typingDiv = document.createElement('div');
-            typingDiv.id = 'typing-indicator';
-            typingDiv.className = 'flex justify-start fade-in';
-            typingDiv.innerHTML = `
-                <div class="flex items-start space-x-2">
-                    <i class="fas fa-robot text-blue-600 mt-2"></i>
-                    <div class="typing-indicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-            `;
-            messagesDiv.appendChild(typingDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        function appendMessage(text, role) {
+            if (emptyState && emptyState.parentNode) emptyState.remove();
+
+            const row = document.createElement('div');
+            row.className = `msg-row ${role}`;
+
+            const avatarGlyph = role === 'user' ? '👤' : '🤖';
+            row.innerHTML = `
+                <div class="msg-avatar">${avatarGlyph}</div>
+                <div class="msg-content">
+                    <div class="msg-bubble">${escapeHtml(text)}</div>
+                    <div class="msg-time">${getTime()}</div>
+                </div>`;
+
+            chatMessages.appendChild(row);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        function removeTypingIndicator() {
-            const indicator = document.getElementById('typing-indicator');
-            if (indicator) {
-                indicator.remove();
-            }
+        function showTyping() {
+            const row = document.createElement('div');
+            row.className = 'msg-row assistant';
+            row.id = 'typing-row';
+            row.innerHTML = `
+                <div class="msg-avatar">🤖</div>
+                <div class="msg-content">
+                    <div class="typing-bubble">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>`;
+            chatMessages.appendChild(row);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        function removeTyping() {
+            const r = document.getElementById('typing-row');
+            if (r) r.remove();
         }
 
         async function sendMessage() {
-            if (isProcessing || !sessionId) return;
-            
-            const chatInput = document.getElementById('chat-input');
-            const message = chatInput.value.trim();
-            
-            if (!message) return;
-            
-            isProcessing = true;
+            if (busy || !sessionId) return;
+            const text = chatInput.value.trim();
+            if (!text) return;
+
             chatInput.value = '';
-            
-            // Add user message
-            addMessage(message, true);
-            
-            // Show typing indicator
-            showTypingIndicator();
-            updateStatus('Thinking...', 'processing');
-            
+            autoResize(chatInput);
+            busy = true;
+            sendBtn.disabled = true;
+            setStatus('Thinking…', 'processing');
+
+            appendMessage(text, 'user');
+            showTyping();
+
             try {
-                const response = await fetch('/api/chat', {
+                const res = await fetch(`${API_BASE}/api/chat`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        session_id: sessionId,
-                        query: message
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, query: text })
                 });
+                const data = await res.json();
+                removeTyping();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
 
-                const data = await response.json();
-                removeTypingIndicator();
+                appendMessage(data.response, 'assistant');
+                setStatus('Active', 'ready');
 
-                if (response.ok) {
-                    addMessage(data.response);
-                    updateStatus('Ready to chat', 'success');
-                    
-                    if (!data.chat_active) {
-                        updateStatus('Session ended', 'error');
-                        document.getElementById('chat-input').disabled = true;
-                        document.getElementById('send-btn').disabled = true;
-                    }
-                } else {
-                    addMessage('Error: ' + (data.error || 'Failed to get response'), false);
-                    updateStatus('Error', 'error');
+                if (!data.chat_active) {
+                    sessionBanner.style.display = 'block';
+                    chatInput.disabled = true;
+                    sendBtn.disabled = true;
+                    setStatus('Closed', 'error');
                 }
-            } catch (error) {
-                removeTypingIndicator();
-                addMessage('Network error: ' + error.message, false);
-                updateStatus('Error', 'error');
+            } catch (e) {
+                removeTyping();
+                appendMessage(`Error: ${e.message}`, 'assistant');
+                setStatus('Error', 'error');
             } finally {
-                isProcessing = false;
+                if (chatInput.disabled === false) sendBtn.disabled = false;
+                busy = false;
             }
+        }
+
+        async function sendSuggestion(text) {
+            chatInput.value = text;
+            sendMessage();
         }
 
         async function resetChat() {
-            if (isProcessing) return;
-            
-            isProcessing = true;
-            showLoading('Resetting session...');
-            
+            if (busy) return;
+            busy = true;
+            showLoading('Resetting session…');
+
             try {
                 if (sessionId) {
-                    await fetch('/api/reset', {
+                    await fetch(`${API_BASE}/api/reset`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ session_id: sessionId })
                     });
                 }
-                
-                sessionId = null;
-                document.getElementById('chat-section').classList.add('hidden');
-                document.getElementById('chat-messages').innerHTML = `
-                    <div class="text-center text-gray-500 py-8">
-                        <i class="fas fa-comments text-4xl mb-4 text-gray-300"></i>
-                        <p>Ask questions about the indexed website content</p>
-                    </div>
-                `;
-                document.getElementById('url-input').value = '';
-                document.getElementById('index-status').classList.add('hidden');
-                document.getElementById('chat-input').disabled = false;
-                document.getElementById('send-btn').disabled = false;
-                document.getElementById('chat-input').focus();
-                
-                updateStatus('Ready', 'ready');
-            } catch (error) {
-                console.error('Reset error:', error);
-            } finally {
-                hideLoading();
-                isProcessing = false;
+            } catch (_) {}
+
+            sessionId = null;
+            chatSection.classList.remove('visible');
+            sessionBanner.style.display = 'none';
+            chatMessages.innerHTML = '';
+            chatMessages.appendChild(buildEmptyState());
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            urlInput.value = '';
+            indexStatus.style.display = 'none';
+            setStatus('Ready', 'ready');
+            chatSubtitle.textContent = 'Ready to answer';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            hideLoading();
+            busy = false;
+        }
+
+        function buildEmptyState() {
+            const div = document.createElement('div');
+            div.className = 'empty-state';
+            div.id = 'empty-state';
+            div.innerHTML = `
+                <div class="empty-icon">💬</div>
+                <div class="empty-title">Start the conversation</div>
+                <p class="empty-sub">Ask anything about the indexed website content below</p>
+                <div class="suggestions">
+                    <div class="suggestion-chip" onclick="sendSuggestion('What is this website about?')">What is this about?</div>
+                    <div class="suggestion-chip" onclick="sendSuggestion('Summarize the main topics')">Summarize topics</div>
+                    <div class="suggestion-chip" onclick="sendSuggestion('What are the key features?')">Key features</div>
+                </div>`;
+            return div;
+        }
+
+        // ─── UTILS ───────────────────────────────────────────────────
+        function escapeHtml(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('url-input').focus();
-        });
+        // ─── INIT ────────────────────────────────────────────────────
+        urlInput.focus();
     </script>
 </body>
 </html>
