@@ -1,0 +1,7 @@
+codetrain
+requests
+beautifulsoup4
+scikit-learn
+numpy
+flask
+flask-cors

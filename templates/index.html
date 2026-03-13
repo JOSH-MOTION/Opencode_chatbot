@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Q&A Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .chat-messages {
+            height: calc(100vh - 320px);
+            min-height: 400px;
+        }
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            border-radius: 18px;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background: #6b7280;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-robot text-2xl"></i>
+                    <h1 class="text-2xl font-bold">Website Q&A Chatbot</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="status-indicator" class="flex items-center space-x-2">
+                        <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                        <span class="text-sm">Ready</span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6">
+        <!-- URL Input Section -->
+        <section id="url-section" class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fas fa-link mr-2 text-blue-600"></i>
+                Enter Website URL(s)
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="url-input" class="block text-sm font-medium text-gray-700 mb-2">
+                        Website URLs (comma-separated)
+                    </label>
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            id="url-input" 
+                            placeholder="https://example.com, https://another-site.com"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                        <button 
+                            id="index-btn" 
+                            onclick="indexUrls()"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center space-x-2"
+                        >
+                            <i class="fas fa-search"></i>
+                            <span>Index</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="index-status" class="hidden text-sm"></div>
+            </div>
+        </section>
+
+        <!-- Chat Section -->
+        <section id="chat-section" class="hidden">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                <!-- Chat Header -->
+                <div class="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold flex items-center">
+                            <i class="fas fa-comments mr-2"></i>
+                            Chat with Website Content
+                        </h2>
+                        <button 
+                            onclick="resetChat()"
+                            class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition duration-200"
+                        >
+                            <i class="fas fa-redo mr-2"></i>
+                            New Session
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="chat-messages overflow-y-auto p-6 space-y-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-comments text-4xl mb-4 text-gray-300"></i>
+                        <p>Ask questions about the indexed website content</p>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="border-t border-gray-200 px-6 py-4">
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            id="chat-input" 
+                            placeholder="Ask a question about the website content..."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            onkeypress="if(event.key === 'Enter') sendMessage()"
+                        >
+                        <button 
+                            id="send-btn"
+                            onclick="sendMessage()"
+                            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center space-x-2"
+                        >
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Send</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p id="loading-text" class="text-gray-700">Processing...</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let sessionId = null;
+        let isProcessing = false;
+
+        function showLoading(text = 'Processing...') {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        function updateStatus(text, type = 'ready') {
+            const indicator = document.getElementById('status-indicator');
+            const colors = {
+                ready: 'bg-yellow-400',
+                success: 'bg-green-400',
+                error: 'bg-red-400',
+                processing: 'bg-blue-400'
+            };
+            
+            indicator.innerHTML = `
+                <span class="w-2 h-2 ${colors[type]} rounded-full animate-pulse"></span>
+                <span class="text-sm">${text}</span>
+            `;
+        }
+
+        function showIndexStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('index-status');
+            const colors = {
+                info: 'text-blue-600',
+                success: 'text-green-600',
+                error: 'text-red-600'
+            };
+            
+            statusDiv.className = `${colors[type]} fade-in`;
+            statusDiv.textContent = message;
+            statusDiv.classList.remove('hidden');
+        }
+
+        async function indexUrls() {
+            if (isProcessing) return;
+            
+            const urlInput = document.getElementById('url-input');
+            const urls = urlInput.value.trim();
+            
+            if (!urls) {
+                showIndexStatus('Please enter at least one URL', 'error');
+                return;
+            }
+
+            isProcessing = true;
+            const indexBtn = document.getElementById('index-btn');
+            indexBtn.disabled = true;
+            indexBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            showLoading('Indexing website content...');
+            updateStatus('Indexing...', 'processing');
+            
+            try {
+                const response = await fetch('/api/index', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ urls })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    sessionId = data.session_id;
+                    showIndexStatus(data.message, 'success');
+                    updateStatus('Ready to chat', 'success');
+                    
+                    // Show chat section
+                    setTimeout(() => {
+                        document.getElementById('chat-section').classList.remove('hidden');
+                        document.getElementById('chat-section').classList.add('fade-in');
+                        document.getElementById('chat-input').focus();
+                    }, 500);
+                } else {
+                    showIndexStatus(data.error || 'Failed to index URLs', 'error');
+                    updateStatus('Error', 'error');
+                }
+            } catch (error) {
+                showIndexStatus('Network error: ' + error.message, 'error');
+                updateStatus('Error', 'error');
+            } finally {
+                hideLoading();
+                isProcessing = false;
+                indexBtn.disabled = false;
+                indexBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function addMessage(content, isUser = false) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'} fade-in`;
+            
+            const bgColor = isUser ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800';
+            const alignment = isUser ? 'items-end' : 'items-start';
+            
+            messageDiv.innerHTML = `
+                <div class="flex ${alignment} space-x-2 max-w-3xl">
+                    ${!isUser ? '<i class="fas fa-robot text-blue-600 mt-2"></i>' : ''}
+                    <div class="${bgColor} rounded-lg px-4 py-2">
+                        <p class="text-sm">${content}</p>
+                    </div>
+                    ${isUser ? '<i class="fas fa-user text-gray-600 mt-2"></i>' : ''}
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const messagesDiv = document.getElementById('chat-messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typing-indicator';
+            typingDiv.className = 'flex justify-start fade-in';
+            typingDiv.innerHTML = `
+                <div class="flex items-start space-x-2">
+                    <i class="fas fa-robot text-blue-600 mt-2"></i>
+                    <div class="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        async function sendMessage() {
+            if (isProcessing || !sessionId) return;
+            
+            const chatInput = document.getElementById('chat-input');
+            const message = chatInput.value.trim();
+            
+            if (!message) return;
+            
+            isProcessing = true;
+            chatInput.value = '';
+            
+            // Add user message
+            addMessage(message, true);
+            
+            // Show typing indicator
+            showTypingIndicator();
+            updateStatus('Thinking...', 'processing');
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        query: message
+                    })
+                });
+
+                const data = await response.json();
+                removeTypingIndicator();
+
+                if (response.ok) {
+                    addMessage(data.response);
+                    updateStatus('Ready to chat', 'success');
+                    
+                    if (!data.chat_active) {
+                        updateStatus('Session ended', 'error');
+                        document.getElementById('chat-input').disabled = true;
+                        document.getElementById('send-btn').disabled = true;
+                    }
+                } else {
+                    addMessage('Error: ' + (data.error || 'Failed to get response'), false);
+                    updateStatus('Error', 'error');
+                }
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('Network error: ' + error.message, false);
+                updateStatus('Error', 'error');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        async function resetChat() {
+            if (isProcessing) return;
+            
+            isProcessing = true;
+            showLoading('Resetting session...');
+            
+            try {
+                if (sessionId) {
+                    await fetch('/api/reset', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+                }
+                
+                sessionId = null;
+                document.getElementById('chat-section').classList.add('hidden');
+                document.getElementById('chat-messages').innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-comments text-4xl mb-4 text-gray-300"></i>
+                        <p>Ask questions about the indexed website content</p>
+                    </div>
+                `;
+                document.getElementById('url-input').value = '';
+                document.getElementById('index-status').classList.add('hidden');
+                document.getElementById('chat-input').disabled = false;
+                document.getElementById('send-btn').disabled = false;
+                document.getElementById('chat-input').focus();
+                
+                updateStatus('Ready', 'ready');
+            } catch (error) {
+                console.error('Reset error:', error);
+            } finally {
+                hideLoading();
+                isProcessing = false;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('url-input').focus();
+        });
+    </script>
+</body>
+</html>
