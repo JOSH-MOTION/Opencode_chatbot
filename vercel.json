@@ -33,10 +33,5 @@
       "dest": "/frontend/$1"
     }
   ],
-  "env": {},
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.9"
-    }
-  }
+  "env": {}
 }
